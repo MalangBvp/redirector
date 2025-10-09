@@ -20,6 +20,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Generate a temporary branch name
+      - name: Set branch
+        run: |
+          TIMESTAMP=$(date +%s)
+          echo "BRANCH=temp-redirect-$TIMESTAMP" >> $GITHUB_ENV
+
       # Update redirects.json (add new redirect at the top)
       - name: Update redirects.json
         run: |
@@ -28,21 +34,27 @@ jobs:
           URL="${{ github.event.inputs.longURL }}"
           jq --arg k "$POSTFIX" --arg v "$URL" '{($k): $v} + .' $FILE > tmp.json && mv tmp.json $FILE
 
-      # Commit changes directly to main branch
+      # Commit changes to temporary branch
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b $BRANCH
           git add r/redirects.json
-          git commit -m "Add redirect: $POSTFIX -> $URL" || echo "No changes to commit"
-          git push https://${{ secrets.PERSONAL_PAT }}@github.com/${{ github.repository }} main
+          git commit -m "Add redirect: $POSTFIX -> $URL"
 
-# Optional: Create a Pull Request (if you prefer PR instead of direct commit)
+      # Push temporary branch
+      - name: Push branch
+        run: |
+          git push https://${{ secrets.PERSONAL_PAT }}@github.com/${{ github.repository }} $BRANCH
+
+      # Create Pull Request to main
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.PERSONAL_PAT }}
-          branch: main
+          branch: ${{ env.BRANCH }}
           title: "Add redirect ${{ github.event.inputs.postfix }}"
-          body: "Automatically added redirect: ${{ github.event.inputs.postfix }} -> ${{ github.event.inputs.longURL }}"
+          body: "Automatically created PR to add redirect: ${{ github.event.inputs.postfix }} -> ${{ github.event.inputs.longURL }}"
           base: main
+          delete-branch: true
