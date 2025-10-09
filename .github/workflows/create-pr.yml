@@ -37,12 +37,12 @@ jobs:
           git commit -m "Add redirect: $POSTFIX -> $URL" || echo "No changes to commit"
           git push https://${{ secrets.PERSONAL_PAT }}@github.com/${{ github.repository }} main
 
-      # Optional: Create a Pull Request (if you prefer PR instead of direct commit)
-      # - name: Create Pull Request
-      #   uses: peter-evans/create-pull-request@v5
-      #   with:
-      #     token: ${{ secrets.PERSONAL_PAT }}
-      #     branch: main
-      #     title: "Add redirect ${{ github.event.inputs.postfix }}"
-      #     body: "Automatically added redirect: ${{ github.event.inputs.postfix }} -> ${{ github.event.inputs.longURL }}"
-      #     base: main
+# Optional: Create a Pull Request (if you prefer PR instead of direct commit)
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.PERSONAL_PAT }}
+          branch: main
+          title: "Add redirect ${{ github.event.inputs.postfix }}"
+          body: "Automatically added redirect: ${{ github.event.inputs.postfix }} -> ${{ github.event.inputs.longURL }}"
+          base: main
