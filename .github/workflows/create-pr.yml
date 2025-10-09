@@ -16,39 +16,33 @@ jobs:
   update-redirects:
     runs-on: ubuntu-latest
     steps:
+      # Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set safe branch name
-        run: |
-          POSTFIX="${{ github.event.inputs.postfix }}"
-          if [ -z "$POSTFIX" ]; then
-            POSTFIX="new-redirect"
-          fi
-          SAFE_POSTFIX=$(echo "$POSTFIX" | tr -c '[:alnum:]-_' '-')
-          echo "BRANCH=add-redirect-$SAFE_POSTFIX" >> $GITHUB_ENV
-
+      # Update redirects.json (add new redirect at the top)
       - name: Update redirects.json
         run: |
           FILE="r/redirects.json"
           POSTFIX="${{ github.event.inputs.postfix }}"
           URL="${{ github.event.inputs.longURL }}"
-          jq --arg k "$POSTFIX" --arg v "$URL" '. + {($k): $v}' $FILE > tmp.json && mv tmp.json $FILE
+          jq --arg k "$POSTFIX" --arg v "$URL" '{($k): $v} + .' $FILE > tmp.json && mv tmp.json $FILE
 
+      # Commit changes directly to main branch
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b $BRANCH
           git add r/redirects.json
-          git commit -m "Add redirect: $POSTFIX -> $URL"
-          git push origin $BRANCH
+          git commit -m "Add redirect: $POSTFIX -> $URL" || echo "No changes to commit"
+          git push https://${{ secrets.PERSONAL_PAT }}@github.com/${{ github.repository }} main
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.PERSONAL_PAT }}
-          branch: ${{ env.BRANCH }}
-          title: "Add redirect ${{ github.event.inputs.postfix }}"
-          body: "Automatically created PR to add redirect: ${{ github.event.inputs.postfix }} -> ${{ github.event.inputs.longURL }}"
-          base: main
+      # Optional: Create a Pull Request (if you prefer PR instead of direct commit)
+      # - name: Create Pull Request
+      #   uses: peter-evans/create-pull-request@v5
+      #   with:
+      #     token: ${{ secrets.PERSONAL_PAT }}
+      #     branch: main
+      #     title: "Add redirect ${{ github.event.inputs.postfix }}"
+      #     body: "Automatically added redirect: ${{ github.event.inputs.postfix }} -> ${{ github.event.inputs.longURL }}"
+      #     base: main
